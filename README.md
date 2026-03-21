@@ -15,7 +15,7 @@
 
 - **框架**：Next.js 14 (App Router)
 - **样式**：Tailwind CSS
-- **AI**：Anthropic Claude (claude-sonnet-4-6)
+- **AI**：DeepSeek (deepseek-chat，via Anthropic-compatible API)
 - **部署**：Vercel
 
 ## 本地开发
@@ -26,7 +26,7 @@ npm install
 
 # 配置环境变量
 cp .env.example .env.local
-# 填入你的 ANTHROPIC_API_KEY
+# 填入你的 ANTHROPIC_API_KEY（DeepSeek API Key）
 
 # 启动开发服务器
 npm run dev
@@ -36,7 +36,7 @@ npm run dev
 
 ## 部署
 
-推荐部署到 [Vercel](https://vercel.com)，在项目设置中添加环境变量 `ANTHROPIC_API_KEY` 即可。
+推荐部署到 [Vercel](https://vercel.com)，在项目设置中添加环境变量 `ANTHROPIC_API_KEY`（填入 DeepSeek API Key）即可。
 
 ## MVP 文档
 

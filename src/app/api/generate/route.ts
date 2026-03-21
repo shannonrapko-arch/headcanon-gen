@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
+  baseURL: process.env.ANTHROPIC_BASE_URL ?? 'https://api.deepseek.com/anthropic',
 })
 
 const STYLE_MAP: Record<string, string> = {
@@ -37,7 +38,7 @@ ${fandomLine}
 4. 不要加标题，直接输出内容`
 
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
+      model: 'deepseek-chat',
       max_tokens: 500,
       messages: [{ role: 'user', content: prompt }],
     })
