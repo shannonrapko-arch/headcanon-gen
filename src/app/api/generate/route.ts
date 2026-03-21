@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
 
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-  baseURL: process.env.ANTHROPIC_BASE_URL ?? 'https://api.deepseek.com/anthropic',
+const client = new OpenAI({
+  apiKey: process.env.DEEPSEEK_API_KEY,
+  baseURL: 'https://api.deepseek.com/v1',
 })
 
 const STYLE_MAP: Record<string, string> = {
@@ -37,15 +37,13 @@ ${fandomLine}
 3. 不要列点，直接写叙述性正文
 4. 不要加标题，直接输出内容`
 
-    const response = await client.messages.create({
+    const response = await client.chat.completions.create({
       model: 'deepseek-chat',
       max_tokens: 500,
       messages: [{ role: 'user', content: prompt }],
     })
 
-    const block = response.content[0]
-    if (block.type !== 'text') throw new Error('AI 未返回文本内容')
-    const result = block.text.trim()
+    const result = response.choices[0]?.message?.content?.trim()
     if (!result) throw new Error('AI 未返回内容')
 
     return NextResponse.json({ result })
