@@ -90,7 +90,7 @@ export default function Home() {
           ✨ HeadcanonGen
         </h1>
         <p className="text-purple-400 text-sm">
-          输入角���，生成你的专属脑补故事
+          输入角色名，生成你的专属脑补故事
         </p>
       </div>
 
