@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
-const client = new OpenAI({
-  apiKey: process.env.DEEPSEEK_API_KEY,
-  baseURL: 'https://api.deepseek.com/v1',
-})
+// 懒初始化：避免构建时因缺少环境变量而报错
+function getClient() {
+  return new OpenAI({
+    apiKey: process.env.DEEPSEEK_API_KEY,
+    baseURL: 'https://api.deepseek.com/v1',
+  })
+}
 
 const STYLE_MAP: Record<string, string> = {
   fluff: '温馨日常（fluff）：温柔、甜蜜、治愈，有小确幸的感觉',
@@ -37,6 +40,7 @@ ${fandomLine}
 3. 不要列点，直接写叙述性正文
 4. 不要加标题，直接输出内容`
 
+    const client = getClient()
     const response = await client.chat.completions.create({
       model: 'deepseek-chat',
       max_tokens: 500,
