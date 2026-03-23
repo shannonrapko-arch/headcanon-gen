@@ -68,7 +68,7 @@ npm run start
 | 变量名 | 说明 | 是否必填 |
 |---|---|---|
 | `DEEPSEEK_API_KEY` | DeepSeek API 密钥 | ✅ 必填 |
-| `NEXT_PUBLIC_SITE_URL` | 站点根 URL（如 `https://example.com`） | 绑定自定义域名后填写 |
+| `NEXT_PUBLIC_SITE_URL` | 站点根 URL，用于 OG meta。**现在不填也没问题**，会自动回退到 `https://headcanon-gen.vercel.app`；以后买了正式域名再填 | 可选 |
 
 4. 点击 **Deploy**，完成部署
 
@@ -110,8 +110,9 @@ npm run start
 # DeepSeek API Key（必填）
 DEEPSEEK_API_KEY=your_deepseek_api_key_here
 
-# 站点根 URL，用于 OpenGraph meta（可选，默认 headcanon-gen.vercel.app）
-# 绑定自定义域名后填入，如：https://headcanon.example.com
+# 站点根 URL，用于 OpenGraph meta（可选）
+# - 不填：自动回退到 https://headcanon-gen.vercel.app，当前直接可用
+# - 以后买了正式域名：填入 https://你的域名，Redeploy 一次即可完成切换
 NEXT_PUBLIC_SITE_URL=
 ```
 
