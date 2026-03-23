@@ -44,12 +44,29 @@ ${fandomLine}
     })
 
     const result = response.choices[0]?.message?.content?.trim()
-    if (!result) throw new Error('AI 未返回内容')
+    if (!result) throw new Error('AI_EMPTY')
 
     return NextResponse.json({ result })
   } catch (error: unknown) {
     console.error('Generate error:', error)
-    const message = error instanceof Error ? error.message : '生成失败'
-    return NextResponse.json({ error: message }, { status: 500 })
+
+    // 根据错误类型返回用户友好的错误信息，不暴露底层细节
+    const msg = error instanceof Error ? error.message : ''
+    const status = (error as { status?: number })?.status
+
+    if (msg === 'AI_EMPTY') {
+      return NextResponse.json({ error: 'AI 没有返回内容，请重试' }, { status: 500 })
+    }
+    if (status === 429 || msg.includes('429') || msg.includes('rate_limit')) {
+      return NextResponse.json({ error: '当前请求太多，请稍后再试 🙏' }, { status: 429 })
+    }
+    if (status === 401 || msg.includes('401') || msg.includes('auth')) {
+      return NextResponse.json({ error: 'API 配置异常，请联系管理员' }, { status: 500 })
+    }
+    if (msg.includes('角色名')) {
+      return NextResponse.json({ error: msg }, { status: 400 })
+    }
+
+    return NextResponse.json({ error: '生成失败，请稍后重试' }, { status: 500 })
   }
 }
