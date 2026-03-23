@@ -36,7 +36,7 @@ cp .env.example .env.local
 
 打开 `.env.local`，填入你的 DeepSeek API Key：
 
-```
+```env
 DEEPSEEK_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
@@ -68,10 +68,39 @@ npm run start
 | 变量名 | 说明 | 是否必填 |
 |---|---|---|
 | `DEEPSEEK_API_KEY` | DeepSeek API 密钥 | ✅ 必填 |
+| `NEXT_PUBLIC_SITE_URL` | 站点根 URL（如 `https://example.com`） | 绑定自定义域名后填写 |
 
 4. 点击 **Deploy**，完成部署
 
 > ⚠️ 不要把 `.env.local` 提交到 Git，该文件已在 `.gitignore` 中排除。
+
+---
+
+## 绑定自定义域名
+
+项目代码层面不依赖任何硬编码域名，绑定自定义域名只需 Vercel 后台操作。
+
+### 步骤
+
+1. **Vercel 后台** → 进入项目 → **Settings → Domains**
+2. 输入你的域名（如 `headcanon.example.com`），点击 **Add**
+3. Vercel 会提示你去 DNS 服务商添加记录：
+   - **根域名**（`example.com`）：添加 `A` 记录，指向 `76.76.21.21`
+   - **子域名**（`www.example.com` 或其他前缀）：添加 `CNAME` 记录，指向 `cname.vercel-dns.com`
+4. DNS 生效后（通常几分钟到 1 小时），Vercel 自动签发 HTTPS 证书
+5. 在 Vercel **Environment Variables** 中补充：
+   ```
+   NEXT_PUBLIC_SITE_URL=https://你的域名
+   ```
+6. 重新触发一次部署（Redeploy），让 OG meta 信息生效
+
+### 项目本身是否需要额外配置？
+
+**不需要。** 项目代码已针对域名切换做好准备：
+- API 路由使用相对路径（`/api/generate`），域名变化不影响
+- OG `url` 读取 `NEXT_PUBLIC_SITE_URL` 环境变量，换域名只改变量即可
+- favicon、静态资源均使用绝对路径，不受域名影响
+- 无任何 CORS 硬编码、无 `allowedOrigins` 白名单需要维护
 
 ---
 
@@ -80,6 +109,10 @@ npm run start
 ```env
 # DeepSeek API Key（必填）
 DEEPSEEK_API_KEY=your_deepseek_api_key_here
+
+# 站点根 URL，用于 OpenGraph meta（可选，默认 headcanon-gen.vercel.app）
+# 绑定自定义域名后填入，如：https://headcanon.example.com
+NEXT_PUBLIC_SITE_URL=
 ```
 
 ---
