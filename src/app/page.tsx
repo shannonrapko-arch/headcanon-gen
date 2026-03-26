@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import AuthBar from './components/AuthBar'
+import PricingSection from './components/PricingSection'
 
 const STYLES = [
   { value: 'fluff', label: '💛 温馨', desc: '日常甜蜜' },
@@ -229,6 +230,9 @@ export default function Home() {
           )}
         </div>
       )}
+
+      {/* 定价模块 */}
+      <PricingSection />
 
       {/* 页脚 */}
       <p className="mt-12 text-purple-800 text-xs">Made with ❤️ &amp; AI</p>
