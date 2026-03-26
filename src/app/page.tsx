@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import AuthBar from './components/AuthBar'
 
 const STYLES = [
   { value: 'fluff', label: '💛 温馨', desc: '日常甜蜜' },
@@ -84,6 +85,9 @@ export default function Home() {
 
   return (
     <main className="min-h-screen px-4 py-10 sm:py-16 flex flex-col items-center">
+      {/* Google 登录状态栏 */}
+      <AuthBar />
+
       {/* 顶部标题 */}
       <div className="text-center mb-8 sm:mb-10">
         <h1 className="text-3xl sm:text-4xl font-bold text-purple-300 tracking-wide mb-2">

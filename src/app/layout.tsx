@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import Providers from './providers'
 
 // 优先读环境变量，方便绑定自定义域名后无需改代码
 // Vercel 后台设置：NEXT_PUBLIC_SITE_URL=https://你的域名
@@ -39,7 +40,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="zh-CN">
-      <body>{children}</body>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   )
 }
