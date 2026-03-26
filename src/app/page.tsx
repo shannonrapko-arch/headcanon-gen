@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import AuthBar from './components/AuthBar'
 import PricingSection from './components/PricingSection'
 
@@ -38,12 +38,19 @@ export default function Home() {
         body: JSON.stringify({ character, fandom, style }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || '生成失败')
+      if (!res.ok) {
+        if (res.status === 402 || data.error === 'NO_CREDITS') {
+          throw new Error('NO_CREDITS')
+        }
+        throw new Error(data.error || '生成失败')
+      }
       setResult(data.result)
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : ''
       // 对普通用户显示友好提示，不暴露底层错误
-      if (msg.includes('角色名')) {
+      if (msg === 'NO_CREDITS') {
+        setError('额度已用完，请到页面底部购买额度包继续生成 ✨')
+      } else if (msg.includes('角色名')) {
         setError('请输入角色名后再生成')
       } else if (msg.includes('fetch') || msg.includes('network') || msg.includes('Failed')) {
         setError('网络异常，请检查网络连接后重试')
@@ -232,7 +239,9 @@ export default function Home() {
       )}
 
       {/* 定价模块 */}
-      <PricingSection />
+      <Suspense>
+        <PricingSection />
+      </Suspense>
 
       {/* 页脚 */}
       <p className="mt-12 text-purple-800 text-xs">Made with ❤️ &amp; AI</p>

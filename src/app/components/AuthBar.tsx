@@ -1,9 +1,24 @@
 'use client'
 
 import { useSession, signIn, signOut } from 'next-auth/react'
+import { useEffect, useState } from 'react'
 
 export default function AuthBar() {
   const { data: session, status } = useSession()
+  const [credits, setCredits] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (session?.user?.email) {
+      fetch('/api/credits')
+        .then((r) => r.json())
+        .then((d) => {
+          if (typeof d.credits === 'number') setCredits(d.credits)
+        })
+        .catch(() => {})
+    } else {
+      setCredits(null)
+    }
+  }, [session])
 
   if (status === 'loading') {
     return (
@@ -16,6 +31,12 @@ export default function AuthBar() {
   if (session?.user) {
     return (
       <div className="w-full max-w-xl mb-4 flex items-center justify-end gap-3">
+        {/* Credits 余额 */}
+        {credits !== null && (
+          <span className="text-xs text-purple-500 border border-purple-900 px-2 py-0.5 rounded-lg">
+            ✨ {credits} 次
+          </span>
+        )}
         {session.user.image && (
           // eslint-disable-next-line @next/next/no-img-element
           <img

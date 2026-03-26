@@ -1,9 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSession, signIn } from 'next-auth/react'
+import { useSearchParams } from 'next/navigation'
 
 const PLANS = [
   {
+    packId: 'pack_30',
     label: '小包',
     count: '30 次',
     price: '¥6',
@@ -11,6 +14,7 @@ const PLANS = [
     highlight: false,
   },
   {
+    packId: 'pack_100',
     label: '中包',
     count: '100 次',
     price: '¥15',
@@ -18,6 +22,7 @@ const PLANS = [
     highlight: true,
   },
   {
+    packId: 'pack_300',
     label: '大包',
     count: '300 次',
     price: '¥35',
@@ -50,12 +55,75 @@ const FAQS = [
 ]
 
 export default function PricingSection() {
+  const { data: session } = useSession()
+  const searchParams = useSearchParams()
   const [openFaq, setOpenFaq] = useState<number | null>(null)
+  const [loadingPack, setLoadingPack] = useState<string | null>(null)
+  const [paymentNotice, setPaymentNotice] = useState<{ type: 'success' | 'cancel'; msg: string } | null>(null)
+
+  // 支付回调提示
+  useEffect(() => {
+    const payment = searchParams.get('payment')
+    if (payment === 'success') {
+      setPaymentNotice({ type: 'success', msg: '🎉 支付成功！额度已到账，刷新页面可查看余额。' })
+      // 清除 URL 参数
+      window.history.replaceState({}, '', '/')
+    } else if (payment === 'cancel') {
+      setPaymentNotice({ type: 'cancel', msg: '支付已取消，如有疑问请联系我们。' })
+      window.history.replaceState({}, '', '/')
+    }
+  }, [searchParams])
+
+  const handleBuy = async (packId: string) => {
+    if (!session?.user) {
+      signIn('google')
+      return
+    }
+
+    setLoadingPack(packId)
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ packId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || '创建支付失败')
+      if (data.url) {
+        window.location.href = data.url
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '创建支付失败，请稍后重试'
+      setPaymentNotice({ type: 'cancel', msg })
+    } finally {
+      setLoadingPack(null)
+    }
+  }
 
   return (
     <section className="w-full max-w-xl mt-16">
       {/* 分割线 */}
       <div className="border-t border-purple-900 mb-10" />
+
+      {/* 支付结果提示 */}
+      {paymentNotice && (
+        <div
+          className={`mb-5 flex items-start gap-2 text-sm rounded-xl px-4 py-3 border ${
+            paymentNotice.type === 'success'
+              ? 'bg-green-950/30 border-green-800/50 text-green-300'
+              : 'bg-red-950/20 border-red-900/40 text-red-400'
+          }`}
+        >
+          <span className="shrink-0 mt-0.5">{paymentNotice.type === 'success' ? '✅' : '⚠️'}</span>
+          <span>{paymentNotice.msg}</span>
+          <button
+            onClick={() => setPaymentNotice(null)}
+            className="ml-auto shrink-0 opacity-50 hover:opacity-100"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* 标题 */}
       <div className="text-center mb-6">
@@ -92,7 +160,7 @@ export default function PricingSection() {
         <div className="grid grid-cols-3 gap-3">
           {PLANS.map((plan) => (
             <div
-              key={plan.label}
+              key={plan.packId}
               className={`relative rounded-xl border p-3 text-center transition ${
                 plan.highlight
                   ? 'border-purple-500 bg-purple-900/30'
@@ -109,11 +177,15 @@ export default function PricingSection() {
               <div className="text-pink-400 font-bold text-lg mt-0.5">{plan.price}</div>
               <div className="text-purple-600 text-[11px] mt-1">{!plan.highlight ? plan.note : ''}</div>
               <button
-                disabled
-                className="mt-2.5 w-full py-1.5 rounded-lg text-xs font-medium bg-purple-800/40 text-purple-500 border border-purple-800 cursor-not-allowed"
-                title="支付功能即将上线"
+                onClick={() => handleBuy(plan.packId)}
+                disabled={loadingPack === plan.packId}
+                className={`mt-2.5 w-full py-1.5 rounded-lg text-xs font-medium border transition ${
+                  plan.highlight
+                    ? 'bg-purple-600 border-purple-400 text-white hover:bg-purple-500 disabled:opacity-50'
+                    : 'bg-purple-800/40 border-purple-700 text-purple-300 hover:border-purple-500 hover:text-white disabled:opacity-50'
+                } disabled:cursor-not-allowed`}
               >
-                买这个包
+                {loadingPack === plan.packId ? '跳转中...' : '买这个包'}
               </button>
             </div>
           ))}
@@ -143,7 +215,10 @@ export default function PricingSection() {
               className="w-full flex items-center justify-between px-4 py-3 text-left text-purple-300 text-sm hover:text-purple-100 transition"
             >
               <span>{faq.q}</span>
-              <span className="text-purple-600 ml-2 shrink-0 transition-transform duration-200" style={{ transform: openFaq === i ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+              <span
+                className="text-purple-600 ml-2 shrink-0 transition-transform duration-200"
+                style={{ transform: openFaq === i ? 'rotate(180deg)' : 'rotate(0deg)' }}
+              >
                 ▾
               </span>
             </button>

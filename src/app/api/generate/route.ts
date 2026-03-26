@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { consumeCredit, getCredits } from '@/lib/credits'
 
 // 懒初始化：避免构建时因缺少环境变量而报错
 function getClient() {
@@ -23,6 +26,22 @@ export async function POST(req: NextRequest) {
     if (!character?.trim()) {
       return NextResponse.json({ error: '请输入角色名' }, { status: 400 })
     }
+
+    // 登录用户：检查并扣减 credits
+    const session = await getServerSession(authOptions)
+    if (session?.user?.email) {
+      const email = session.user.email
+      const balance = await getCredits(email)
+      if (balance <= 0) {
+        return NextResponse.json(
+          { error: 'NO_CREDITS', message: '额度已用完，请购买额度包继续生成 ✨' },
+          { status: 402 }
+        )
+      }
+      // 先扣再生成（避免生成完了扣失败的问题）
+      await consumeCredit(email)
+    }
+    // 未登录用户：不扣 credits，保持现有体验不变
 
     const styleDesc = STYLE_MAP[style] || STYLE_MAP.fluff
     const fandomLine = fandom?.trim() ? `- 作品/世界观：${fandom}` : ''
@@ -54,7 +73,6 @@ ${fandomLine}
   } catch (error: unknown) {
     console.error('Generate error:', error)
 
-    // 根据错误类型返回用户友好的错误信息，不暴露底层细节
     const msg = error instanceof Error ? error.message : ''
     const status = (error as { status?: number })?.status
 
