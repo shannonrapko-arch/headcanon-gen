@@ -1,32 +1,38 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSession, signIn } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
+import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js'
+
+const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || ''
 
 const PLANS = [
   {
     packId: 'pack_30',
     label: '小包',
     count: '30 次',
-    price: '¥6',
-    note: '约 ¥0.2 / 次',
+    price: '$0.99',
+    note: '约 $0.033 / 次',
+    amount: '0.99',
     highlight: false,
   },
   {
     packId: 'pack_100',
     label: '中包',
     count: '100 次',
-    price: '¥15',
+    price: '$2.99',
     note: '最划算 🔥',
+    amount: '2.99',
     highlight: true,
   },
   {
     packId: 'pack_300',
     label: '大包',
     count: '300 次',
-    price: '¥35',
-    note: '约 ¥0.12 / 次',
+    price: '$6.99',
+    note: '约 $0.023 / 次',
+    amount: '6.99',
     highlight: false,
   },
 ]
@@ -54,19 +60,90 @@ const FAQS = [
   },
 ]
 
-export default function PricingSection() {
+// 单个套餐的 PayPal 按钮
+function PlanPayPalButton({
+  plan,
+  onSuccess,
+  onError,
+}: {
+  plan: (typeof PLANS)[number]
+  onSuccess: (packId: string, credits: number) => void
+  onError: (msg: string) => void
+}) {
   const { data: session } = useSession()
+
+  if (!session?.user) {
+    return (
+      <button
+        onClick={() => signIn('google')}
+        className="mt-2.5 w-full py-1.5 rounded-lg text-xs font-medium border transition bg-purple-800/40 border-purple-700 text-purple-300 hover:border-purple-500 hover:text-white"
+      >
+        登录购买
+      </button>
+    )
+  }
+
+  return (
+    <div className="mt-2.5 paypal-btn-wrap">
+      <PayPalButtons
+        style={{ layout: 'horizontal', height: 30, tagline: false, label: 'buynow' }}
+        fundingSource="paypal"
+        createOrder={(_data, actions) => {
+          return actions.order.create({
+            intent: 'CAPTURE',
+            purchase_units: [
+              {
+                amount: {
+                  currency_code: 'USD',
+                  value: plan.amount,
+                },
+                description: `HeadcanonGen · ${plan.label} ${plan.count}`,
+              },
+            ],
+          })
+        }}
+        onApprove={async (_data, _actions) => {
+          try {
+            // onApprove 触发时用户已在 PayPal 弹窗完成授权
+            // 由服务端 capture
+            const res = await fetch('/api/paypal/capture', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ orderID: _data.orderID, packId: plan.packId }),
+            })
+            const result = await res.json()
+            if (!res.ok) throw new Error(result.error || '支付处理失败')
+            onSuccess(plan.packId, result.credits)
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : '支付处理失败，请重试'
+            onError(msg)
+          }
+        }}
+        onError={(err) => {
+          console.error('PayPal error:', err)
+          onError('PayPal 支付出现错误，请重试')
+        }}
+        onCancel={() => {
+          onError('支付已取消')
+        }}
+      />
+    </div>
+  )
+}
+
+function PricingSectionInner() {
   const searchParams = useSearchParams()
   const [openFaq, setOpenFaq] = useState<number | null>(null)
-  const [loadingPack, setLoadingPack] = useState<string | null>(null)
-  const [paymentNotice, setPaymentNotice] = useState<{ type: 'success' | 'cancel'; msg: string } | null>(null)
+  const [paymentNotice, setPaymentNotice] = useState<{
+    type: 'success' | 'cancel'
+    msg: string
+  } | null>(null)
 
-  // 支付回调提示
+  // 支付回调提示（保留 URL 参数兼容，以防其他跳转）
   useEffect(() => {
     const payment = searchParams.get('payment')
     if (payment === 'success') {
       setPaymentNotice({ type: 'success', msg: '🎉 支付成功！额度已到账，刷新页面可查看余额。' })
-      // 清除 URL 参数
       window.history.replaceState({}, '', '/')
     } else if (payment === 'cancel') {
       setPaymentNotice({ type: 'cancel', msg: '支付已取消，如有疑问请联系我们。' })
@@ -74,30 +151,16 @@ export default function PricingSection() {
     }
   }, [searchParams])
 
-  const handleBuy = async (packId: string) => {
-    if (!session?.user) {
-      signIn('google')
-      return
-    }
+  const handleSuccess = (packId: string, credits: number) => {
+    console.log(`Payment success: ${packId}, +${credits} credits`)
+    setPaymentNotice({
+      type: 'success',
+      msg: `🎉 支付成功！已到账 ${credits} 次，刷新页面可查看余额。`,
+    })
+  }
 
-    setLoadingPack(packId)
-    try {
-      const res = await fetch('/api/stripe/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ packId }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || '创建支付失败')
-      if (data.url) {
-        window.location.href = data.url
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '创建支付失败，请稍后重试'
-      setPaymentNotice({ type: 'cancel', msg })
-    } finally {
-      setLoadingPack(null)
-    }
+  const handleError = (msg: string) => {
+    setPaymentNotice({ type: 'cancel', msg })
   }
 
   return (
@@ -175,18 +238,14 @@ export default function PricingSection() {
               <div className="text-purple-300 text-xs mb-1">{plan.label}</div>
               <div className="text-purple-100 font-bold text-base">{plan.count}</div>
               <div className="text-pink-400 font-bold text-lg mt-0.5">{plan.price}</div>
-              <div className="text-purple-600 text-[11px] mt-1">{!plan.highlight ? plan.note : ''}</div>
-              <button
-                onClick={() => handleBuy(plan.packId)}
-                disabled={loadingPack === plan.packId}
-                className={`mt-2.5 w-full py-1.5 rounded-lg text-xs font-medium border transition ${
-                  plan.highlight
-                    ? 'bg-purple-600 border-purple-400 text-white hover:bg-purple-500 disabled:opacity-50'
-                    : 'bg-purple-800/40 border-purple-700 text-purple-300 hover:border-purple-500 hover:text-white disabled:opacity-50'
-                } disabled:cursor-not-allowed`}
-              >
-                {loadingPack === plan.packId ? '跳转中...' : '买这个包'}
-              </button>
+              <div className="text-purple-600 text-[11px] mt-1">
+                {!plan.highlight ? plan.note : ''}
+              </div>
+              <PlanPayPalButton
+                plan={plan}
+                onSuccess={handleSuccess}
+                onError={handleError}
+              />
             </div>
           ))}
         </div>
@@ -198,9 +257,7 @@ export default function PricingSection() {
 
       {/* 额度不够提示 */}
       <div className="text-center mb-6">
-        <p className="text-purple-600 text-xs">
-          额度不够了？补一点继续玩 👆
-        </p>
+        <p className="text-purple-600 text-xs">额度不够了？补一点继续玩 👆</p>
       </div>
 
       {/* FAQ */}
@@ -223,13 +280,27 @@ export default function PricingSection() {
               </span>
             </button>
             {openFaq === i && (
-              <div className="px-4 pb-3 text-purple-500 text-sm leading-relaxed">
-                {faq.a}
-              </div>
+              <div className="px-4 pb-3 text-purple-500 text-sm leading-relaxed">{faq.a}</div>
             )}
           </div>
         ))}
       </div>
     </section>
+  )
+}
+
+export default function PricingSection() {
+  return (
+    <PayPalScriptProvider
+      options={{
+        clientId: PAYPAL_CLIENT_ID,
+        currency: 'USD',
+        intent: 'capture',
+      }}
+    >
+      <Suspense>
+        <PricingSectionInner />
+      </Suspense>
+    </PayPalScriptProvider>
   )
 }
